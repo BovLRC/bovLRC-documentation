@@ -52,6 +52,110 @@ Trimming can be personalized based on platform/quality. It is crucial that any a
 - PacBio Hifi data does not require any further QC.
 
 *Example of FiltLong & Porechop_ABI command:*
-```shell
+```
 filtlong --min_length 200 ${input}.fastq.gz | bgzip > ${output}.fastq.gz
 porechop_abi -abi -i ${input}.fq.gz -o ${output}_QC.fq.gz
+```
+
+*Example NanoPlot command*
+
+```
+NanoPlot -t $task.cpus --fastq ${input}.fastq.gz --outdir {ouputdirectory} -p ${prefix}_ --loglength --plots dot
+```
+
+*An example baz2bam command*
+
+```
+baz2bam ${input}.baz --metadata ${input}.metadata.xml -j 32 -b 8 --inlinePbi --progress --silent --maxInputQueueMB 70000 –zmwBatchMB 50000 –zmwHeaderBatchMB 30000 –maxOutputQueueMB 15000 -o ${output_dir}
+```
+
+## Map FASTQ
+
+First the reference FASTA should be indexed by Minimap2. Map trimmed reads (that pass above QC) to the reference using Minimap2. Sort resulting bam file with samtools sort and index your sorted bam file with samtools index. Using the correct reference will ensure the bam files are sorted correctly.
+
+Where multiple bam files are generated for an individual you can use [Picard MergeSamFiles] (https://broadinstitute.github.io/picard/command-line-overview.html#MergeSamFiles) to merge them. 
+
+*An example of Minimap2 and Samtools commands*
+
+```
+minimap2 -x ${X} -d ont ARS-bov-ont.mmi ARS-UCD2.0.fasta.gz
+minimap2 -ax ${X} ARS-bov-ont.mmi -t 24 ${fastq} --MD | samtools sort -@ 24 - -o ${INTERNATIONALID}.sorted.bam 
+```
+
+where X = map-ont, map-pb or map-hifi depending on your sequence
+
+*An example of Picard MergeSamFiles command*
+```
+java -Xmx80G -jar /usr/local/picard/2.1.0/picard.jar MergeSamFiles ${BAMlist} O=${INTERNATIONALID}.sorted.bam VALIDATION_STRINGENCY=LENIENT ASSUME_SORTED=true MERGE_SEQUENCE_DICTIONARIES=true
+```
+
+## Variant Calling
+
+Use Sniffles2 to call structural variants within individual. This will generate a SNF file, use bgzip to compress it. This snf.gz file should be submitted to AgVic, keep a copy for your own reference. 
+
+An example of Sniffles2 command
+```
+sniffles --input ${INTERNATIONALID}.sorted.bam \
+         --vcf ${INTERNATIONALID}_SV.vcf \
+         --snf ${INTERNATIONALID}.snf \
+         --threads $task.cpus \
+         --minsvlen 50 \
+         --mapq 20 \
+         --reference ARS-UCD2.0.fa         
+```
+
+Use Clair3 to call small variants within individual. Ensure the appropriate Clair3 models are used for your data type (using `--model_path option`). Models can be found for various data types on the [Clair3 github](https://github.com/HKU-BAL/Clair3). For ONT flowcell version 10.4 and above, users should download the newest Clair3 models from [https://github.com/nanoporetech/rerio/tree/master/clair3_models](https://github.com/nanoporetech/rerio/tree/master/clair3_models). Note that there is currently no model for PacBio CLR data. If you have this data type please email us at [cattleLRC@gmail.com](mailto:cattleLRC@gmail.com) for alternative instructions. 
+
+The resulting GVCF file should be zipped using bgzip and submitted to AgVic, keep a copy for your own reference.
+
+*An example of Clair3 command*
+
+```
+run_clair3.sh --bam_fn=${INTERNATIONALID}.sorted.bam \
+    --ref_fn=ARS-UCD2.0.fa \
+    --threads=24 \
+    --platform=${platform}\
+    --sample_name=${INTERNATIONALID} \
+    --model_path=${model_path} \
+    --ctg_name=${chr} \
+    --remove_intermediate_dir \
+    --gvcf \
+    --output=${outputdirectory}
+```
+
+Where ${platform} is ont or hifi and ${model_path} is the path to the Clair3 model for your data type.
+
+*An example of compressing command*
+
+```
+bgzip -@ $task.cpus ${INTERNATIONALID}.snf
+bgzip -@ $task.cpus ${INTERNATIONALID}_SV.vcf  
+```
+
+## Calculate read coverage
+
+It is important to know the coverage for a few reasons, one being to ensure compliance with the coverage requirements. Mosdepth can be used to calculate coverage. Coverage should be provided in the checklist (see below).
+
+*An example Mosdepth command*
+
+```
+mosdepth --threads $task.cpus ${INTERNATIONALID}${INTERNATIONALID}.sorted.bam
+```
+
+## Create md5sum for all Files to be Transferred
+
+An md5sum must be created for all files shared with the consortium. An md5sum is a 128 bit checksum which will be unique for each file. Two non-identical files will not have the same md5sum and therefore the md5sum can be used to cross verify the integrity of a file after download or transfer.
+
+
+## BovLRC Checklist
+
+- Consult the file submission checklist (provided to all project partners) as well as these specifications before preparing data. Checklist and ID key spreadsheets must then be filled in and submitted via email to [cattleLRC@gmail.com](mailto:cattleLRC@gmail.com).
+
+- The inclusion of genotype information aids the quality checking process and can identify problems with libraries or alignments. If you have BovineSNP50 or BovineHD (or equivalent) data for your samples, it would be very beneficial to share these. Genotype data files should be provided as Illumina GenomeStudio output in TOPTOP (preferred) and FORWARD/FORWARD format. Please contact us if you have Affymetrix or other high-density (>100,000 loci per chip) genotype data and would like to contribute it. Alternatively, short read sequence genotypes can be provided in VCF format. If the animal is part of the 1000 Bull Genomes dataset, just advise us of the animal ID in that dataset. Please inform us if you have any of these data types in the checklist.
+
+## Submission of Files
+
+GVCF files (.g.vcf.gz), md5sum files (.md5), and SNF files (.snf.gz) may be transferred electronically by uploading them to your consortium server account. The following procedure must be followed:
+
+1. Contact Tuan Nguyen ([tuan.nguyen@agriculture.vic.gov.au](mailto:tuan.nguyen@agriculture.vic.gov.au)) and let him know the timing and size of files to be transferred. Only start uploads once AgVic confirms the server has the required capacity.
+2. Files must be uploaded to your account, e.g., `username@203.12.194.81:/home/username`.
