@@ -1,4 +1,5 @@
 # Bovine Long Read Consortium Guidelines for Run 1
+
 *Version: 14/09/2023*
 
 These specifications describe the data requirements and steps to process sequence reads to GCVF and SNF files for the Bovine Long Read Consortium. Please follow these instructions closely. **NOTE:** GVCF and SNF files will not be accepted if they do not meet these specifications.
@@ -13,16 +14,20 @@ These specifications have been agreed to by a Quality Control Subcommittee compr
 4. PacBio minimum mapped read depth: CLR 20x, HiFi 10x
 5. ONT minimum mapped read depth: 10x (but if basecalled with old version of Guppy & FAST5 files deleted - then prefer 20x)
 6. Minimum N50 read length = 10 Kb. For future sequencing aim for minimum N50 = 20 Kb. Most SV are not huge, so for population-scale the above read length is OK.
-7. If you have a breed not previously LR sequenced, then consider the possibility of doing at least one animal at higher coverage (and lengths) and contact Ben Rosen (ben.rosen@usda.gov) at the Pan Genome Consortium project to discuss breed inclusion.
+7. If you have a breed not previously LR sequenced, then consider the possibility of doing at least one animal at higher coverage (and lengths) and contact Ben Rosen [ben.rosen@usda.gov](mailto:ben.rosen@usda.gov) at the Pan Genome Consortium project to discuss breed inclusion.
 8. SNP chip genotypes preferably available for sequenced animals (higher density preferable) to check genotype call accuracy. For some, there may be short read data available, this could provide an alternate mechanism.
 9. Provide high quality records of meta-data of samples sequenced
 10. Lab protocols: Participants can choose ONT or PacBio sequencing. QC committee members have agreed to share their experiences with these technologies. Email inquiries to cattleLRC@gmail.com
 
 ## Run 1 Process
 
-**Figure 1:** Flowchart of the agreed process for run 1 of the Bovine Long Read Consortium.
+![BovLRC_flow.png
+](https://raw.githubusercontent.com/BovLRC/bovLRC-documentation/main/images/BovLRC_flow.png)
+
+*Figure 1:* Flowchart of the agreed process for run 1 of the Bovine Long Read Consortium.
 
 **Reference to use for Run 1**
+
 ARS-UCD2.0 is the reference genome to be used in this project. This reference comprises ARS-UCD1.2 (Rosen, Bickhart et al. 2018) and the Y chromosome assembly from the T2T assembly from Wagyu. It can be downloaded from [NCBI](https://www.ncbi.nlm.nih.gov/assembly/GCF_002263795.3). This exact copy of the reference genome must be used to ensure GVCF & SNF files are compatible with the BovLRC pipeline. Non-conforming files will be excluded from the run. The annotation for this assembly is also available at [NCBI](https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/002/263/795/GCF_002263795.3_ARS-UCD2.0/) for downstream analysis.
 
 **Software required for member processing of FASTQ to SNF and GVCF files**
@@ -82,9 +87,10 @@ minimap2 -x ${X} -d ont ARS-bov-ont.mmi ARS-UCD2.0.fasta.gz
 minimap2 -ax ${X} ARS-bov-ont.mmi -t 24 ${fastq} --MD | samtools sort -@ 24 - -o ${INTERNATIONALID}.sorted.bam 
 ```
 
-where X = map-ont, map-pb or map-hifi depending on your sequence
+where `X` can be `map-ont`, `map-pb` or `map-hifi` depending on your sequence
 
 *An example of Picard MergeSamFiles command*
+
 ```
 java -Xmx80G -jar /usr/local/picard/2.1.0/picard.jar MergeSamFiles ${BAMlist} O=${INTERNATIONALID}.sorted.bam VALIDATION_STRINGENCY=LENIENT ASSUME_SORTED=true MERGE_SEQUENCE_DICTIONARIES=true
 ```
@@ -94,6 +100,7 @@ java -Xmx80G -jar /usr/local/picard/2.1.0/picard.jar MergeSamFiles ${BAMlist} O=
 Use Sniffles2 to call structural variants within individual. This will generate a SNF file, use bgzip to compress it. This snf.gz file should be submitted to AgVic, keep a copy for your own reference. 
 
 An example of Sniffles2 command
+
 ```
 sniffles --input ${INTERNATIONALID}.sorted.bam \
          --vcf ${INTERNATIONALID}_SV.vcf \
