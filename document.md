@@ -83,7 +83,7 @@ Where multiple bam files are generated for an individual you can use [Picard Mer
 *An example of Minimap2 and Samtools commands*
 
 ```
-minimap2 -x ${X} -d ont ARS-bov-ont.mmi ARS-UCD2.0.fasta.gz
+minimap2 -x ${X} -d ARS-bov-ont.mmi ARS-UCD2.0.fasta.gz
 minimap2 -ax ${X} ARS-bov-ont.mmi -t 24 ${fastq} --MD | samtools sort -@ 24 - -o ${INTERNATIONALID}.sorted.bam 
 ```
 
